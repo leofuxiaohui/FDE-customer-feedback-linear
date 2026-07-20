@@ -1,4 +1,4 @@
-# FDE-customer-feedback-linear
+# customer-feedback-linear
 
 Two Claude Code skills that close the loop on **Agentforce customer feedback via Linear** — so FDEs/SEs and PMs don't need a meeting to understand it:
 
