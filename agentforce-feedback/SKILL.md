@@ -1,17 +1,17 @@
 ---
 name: agentforce-feedback
-description: Use when an FDE or Solution Engineer wants to attach detailed, structured product feedback to a Linear issue (the Agentforce Feedback intake, AFP-*) — turns evidence the SE has already gathered into one self-contained in-app Linear Document plus a concise summary comment on the issue thread, so PMs review everything without downloading anything. Works for any feature (Testing Center, Agent Script, Voice, Builder, etc.).
+description: Use when an FDE or Solution Engineer wants to attach detailed, structured product feedback to a Linear issue (the Agentforce Feedback intake, AFP-*) — turns evidence the FDE/SE has already gathered into one self-contained in-app Linear Document plus a concise summary comment on the issue thread, so PMs review everything without downloading anything. Works for any feature (Testing Center, Agent Script, Voice, Builder, etc.).
 ---
 
 # Agentforce Feedback → Linear
 
 Package detailed product feedback into a target Linear issue as **(1)** one self-contained **in-app Document** (the deep dive) and **(2)** a concise **summary comment** on the thread that links the doc. Everything stays inside Linear — no attachments to download.
 
-This skill handles **packaging and posting**. It does *not* gather the evidence (that is feature-specific) — the SE brings the evidence; you structure and publish it.
+This skill handles **packaging and posting**. It does *not* gather the evidence (that is feature-specific) — the FDE/SE brings the evidence; you structure and publish it.
 
 ## When to use
 
-- The SE has evidence for a product gap / feature request / bug and a target Linear issue to enrich (usually an `AFP-###` in the Agentforce Feedback intake).
+- The FDE/SE has evidence for a product gap / feature request / bug and a target Linear issue to enrich (usually an `AFP-###` in the Agentforce Feedback intake).
 - Goal: make the feedback triage-ready — clear narrative, expected-vs-actual, root cause if known, business impact, and a concrete ask — reviewable in-app.
 
 Do **not** use this to run tests or collect traces, or to file the initial intake issue.
@@ -107,7 +107,7 @@ Use as the `content` for `save_document`. Delete sections that don't apply; rena
 ## 7. Recommendation / product ask
 1. **<Primary ask>** — <what should change>.
 2. **<Alternative / interim>** — <a lighter mitigation, e.g. a warning or doc>.
-3. **Until then** — <workaround SEs/customers can use today>.
+3. **Until then** — <workaround FDEs/SEs or customers can use today>.
 
 ## 8. Appendix — reproduction & raw data
 - **Environment / IDs:** <org, agent, versions, session/run IDs>

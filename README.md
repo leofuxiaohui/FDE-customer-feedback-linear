@@ -2,7 +2,7 @@
 
 Turns detailed FDE/SE product feedback into a triage-ready **Linear in-app Document + summary comment** on a target issue (the Agentforce Feedback intake, `AFP-*`). Feature-agnostic — works for Testing Center, Agent Script, Voice, Builder, etc. No downloadable attachments: reviewers stay in Linear.
 
-## What an SE gets
+## What an FDE/SE gets
 
 For any issue they point it at, the skill:
 1. verifies the Linear MCP is on the right workspace (`eventsmobileapp` / "Agentforce Feedback");
@@ -10,7 +10,7 @@ For any issue they point it at, the skill:
 3. drafts **one self-contained evidence document** (verdict → evidence → expected-vs-actual → root cause → why it matters → ask → appendix, with raw data tucked into collapsible blocks);
 4. links it under the issue and posts a **concise summary comment** with the link.
 
-The SE supplies the evidence (transcripts, data, screenshots, root cause, the ask); the skill structures and publishes it.
+The FDE/SE supplies the evidence (transcripts, data, screenshots, root cause, the ask); the skill structures and publishes it.
 
 ## Install
 
