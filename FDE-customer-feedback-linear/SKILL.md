@@ -37,10 +37,10 @@ Feedback issues (`AFP-*`) live in the **`eventsmobileapp`** workspace, team **"A
 
 ## Procedure
 
-1. **Verify + read context.** `get_issue <id>`. Read the intake fields (**Customer Name, Product Feature Family/Group, Feedback Theme, Business Outcome/Use Case**) and tailor the framing so the evidence visibly answers the customer's stated need — quote it where useful. If your evidence **corrects or sharpens the intake's problem statement** (e.g. the intake says "not supported" but the mechanism is "supported but state-lossy"), plan to say so explicitly — the roadmap must aim at the true mechanism, not the first approximation.
+1. **Verify + read context.** `get_issue <id>`. Read the intake fields (**Customer Name, Product Feature Family/Group, Feedback Theme, Business Outcome/Use Case**) and tailor the framing so the evidence visibly answers the customer's stated need — quote it where useful. If your evidence **corrects or sharpens the intake's problem statement** (e.g. the intake says "not supported" but the mechanism is "supported but state-lossy"), plan to say so explicitly — the roadmap must aim at the true mechanism, not the first approximation. Set `feature_family` to mirror the intake's **Product Feature Family** (or Feature Group when that's the precise area); if your evidence refines which area it really is, say so in prose rather than silently diverging from the intake taxonomy.
 2. **Draft the doc** from the *Evidence document template* below. Fill only the sections that apply. Keep raw data/logs/queries inside collapsible `<details>` blocks so the main narrative stays clean and scannable. Lead with the strongest proof.
-3. **Pre-answer the PM.** Generate the *"Questions a PM will ask"* section: put yourself in the triaging PM's seat and answer the standard follow-ups (see the checklist in the template — scope, regression-vs-always, frequency, workaround, quantified impact, what-changes-if-fixed). Where the FDE/SE can't answer from the evidence, ask them once; anything still unanswered goes in **open questions** — flagged, not omitted. This section is what replaces the meeting.
-4. **Emit the `feedback-record` block** (schema below) as the last section of the doc. Derive values from the evidence and intake fields; **use only the fixed vocabulary** for the enum fields — if none fits, use the closest and note the nuance in `notes`. Confirm `severity` and `customer_impact` with the FDE/SE if not obvious — these drive PM prioritization rollups.
+3. **Pre-answer the PM.** Generate the *"Questions a PM will ask"* section: put yourself in the triaging PM's seat and answer the standard follow-ups (see the checklist in the template — scope, regression-vs-always, frequency, workaround, quantified impact, what-changes-if-fixed). Where the FDE/SE can't answer from the evidence, ask them once; anything still unanswered goes in **open questions** — flagged, not omitted. This section is what replaces the meeting. **FDE open questions (`Q#`) are about the limits of *your own* evidence** — what your investigation did not cover (e.g. "reproduced on chat; not yet re-run on the customer's voice channel") — **not** product-wide questions like prevalence or roadmap, which are the PM's to answer. If you're tempted to ask "how many customers are affected," that's a PM triage action, not an FDE question.
+4. **Emit the `feedback-record` block** (schema below) as the last section of the doc. Derive values from the evidence and intake fields; **use only the fixed vocabulary** for the enum fields — if none fits, use the closest and note the nuance in `notes`. Confirm `severity` and `customer_impact` with the FDE/SE if not obvious — these drive PM prioritization rollups. (`open_questions` here are `Q#` evidence-limit items only — see step 3.)
 5. **Create the doc linked to the issue:** `save_document` with `issue: <id>`, a clear `title`, and the markdown `content`.
    - **Do not pass `icon`** unless you know it is a valid Linear icon name — an invalid icon name errors the whole call. Omit it.
    - The create call returns the doc URL. **Update the doc once more** (`save_document` with `id: <doc id>`) to fill `evidence_doc:` in the record block with that URL, so the record is self-locating.
@@ -56,16 +56,34 @@ Feedback issues (`AFP-*`) live in the **`eventsmobileapp`** workspace, team **"A
 - **Retiring a doc:** the Linear MCP has **no delete/archive-document tool**. To retire a doc, rename it to a `↪ Merged — archive me` stub whose body links the surviving doc, and ask the user to archive it in-app (hover the doc → ⋯ → **Archive**).
 - **Markdown, not HTML.** Linear renders markdown tables, code fences, blockquotes, and `<details>` — use those. It will not render an HTML file inline.
 - **Every hand-off names an owner.** When you post open questions for the PM, say explicitly the ball is with the PM. When answering PM follow-ups, flag any question that needs *customer* input as `(customer-dependent)` — it can't be answered from the desk, and the thread should show that the delay is a customer touch, not FDE silence.
+- **Never invent specifics.** Don't fabricate customer detail, channel mechanics, or quantified impact to fill the template. You have one customer's evidence — stay inside it. Mark any illustrative/simulated value explicitly, and prefer "not quantified" over a fake-precise number.
+- **Lead each loop comment with a one-line state banner** — e.g. `Round 2 · FDE → PM · 2 open (F1, F2)` — so a reader sees the round, direction, and what's outstanding before the detail.
+
+---
+
+## The register (ask/answer ledger)
+
+Every **item** in the loop — an ask, a question, a follow-up, a decision — lives in a **register table with a stable ID and a status token**, never as a loose bullet. Prose is for rationale *around* the register. The same table shape runs from the first ask to the close, and the **closing comment carries the complete register** so the outcome reads in one scan.
+
+| ID | Item | Owner | Status | Resolution |
+|---|---|---|---|---|
+| A1 | \<the item, one line\> | PM | ⏳ open | — |
+
+**Status tokens:** ⏳ open · 📋 accepted · 🔎 sized (accepted in principle, lives in an epic) · 🔴 blocked (needs customer / external input) · ✅ resolved · ❌ declined (reason in prose)
+
+**ID prefixes:** `A#` = FDE ask · `Q#` = FDE evidence-limit question (about the boundary of the FDE's own investigation) · `F#` = PM follow-up to the FDE · `P#` = PM-owned triage action (e.g. a telemetry pull)
+
+IDs are also the join key to the machine records: an `A1` in the register is the same `A1` referenced in `feedback_record`/`triage_record`.
 
 ---
 
 ## Round 2 — responding to PM follow-ups
 
-1. When the PM posts follow-up questions (threaded under your summary comment), answer **on the same thread** — `save_comment` with `parentId: <the PM comment's id>` so the round-trip stays one nested conversation.
+1. When the PM posts follow-up questions (threaded under your summary comment), answer **on the same thread** — `save_comment` with `parentId: <the PM comment's id>` so the round-trip stays one nested conversation. Lead the reply with a one-line state banner (see Conventions & guardrails) and update the register rows in your reply (`F#` → ✅ resolved or 🔴 blocked, as applicable).
 2. Answer what you can from existing evidence. Questions flagged `(customer-dependent)` require a customer touch — say so, give an ETA, don't guess on the customer's behalf.
 3. **New evidence goes in the doc, not the thread**: append an appendix section to the existing evidence doc (`save_document` with `id:`) and link it from your reply. The thread carries conclusions; the doc carries proof.
 4. Update the doc's `feedback_record` **only if facts changed** (e.g. `repro_status`, `severity`, new `asks`). Answering a question doesn't require a record edit; changing a fact does. Remove resolved entries from `open_questions`.
-5. Aim to close all open questions in this one reply — the loop targets ≤ 2 round-trips (see the companion PM skill's closure rules).
+5. **Converge, don't count.** Aim to shrink the register's open set with this reply, not just answer questions — see the PM skill's *When is the loop closed?* section. Most items settle in one or two exchanges, but that's an observation, not a pass/fail bar; if a round doesn't trend the open items to zero, or adds more than it closes, that's the cue to recommend a sync.
 
 ---
 
@@ -96,6 +114,7 @@ notes: <optional nuance, e.g. why an enum was a near-fit>
 ```
 
 **Enum meanings** (pick honestly — PM rollups depend on these being comparable across FDEs):
+- `feature_family` — Set to mirror the intake's **Product Feature Family** (or Feature Group when that's the precise area), so PM rollups key consistently. If your evidence refines which area it really is, say so in prose and note it in the record's `notes` — don't silently diverge from the intake taxonomy.
 - `gap_type` — `bug` (behaves contrary to design), `limitation` (works as designed but the design falls short), `feature-request` (net-new capability), `docs-gap` (capability exists, discoverability/guidance doesn't).
 - `severity` — `blocker` (customer cannot proceed), `workaround-exists` (proceeding, but painfully), `inconvenience` (annoyance, low friction).
 - `customer_impact` — `adoption-blocking`, `deal-risk`, `productivity-loss`, `confidence-loss` (erodes trust in the product, e.g. false test passes).
@@ -213,12 +232,16 @@ Use as the `body` for `save_comment`. Keep it short — it's the thread-level ho
 
 <optional compact results table — the same one from the doc's section 2>
 
-**Product ask**
-1. <primary ask>
-2. <alternative / interim>
+**Product ask** — register rows, Owner PM, Status ⏳ open until PM triages
+| ID | Item | Owner | Status | Resolution |
+|---|---|---|---|---|
+| A1 | <primary ask> | PM | ⏳ open | — |
+| A2 | <alternative / interim> | PM | ⏳ open | — |
 
-**Open questions for PM** *(omit if none)*
-- <what the FDE/SE couldn't answer — reply here on the thread, no meeting needed>
+**Open questions for PM** *(omit if none)* — register rows, Owner FDE, Status ⏳ open
+| ID | Item | Owner | Status | Resolution |
+|---|---|---|---|---|
+| Q1 | <what the FDE/SE couldn't answer — reply here on the thread, no meeting needed> | FDE | ⏳ open | — |
 
 **Full write-up (inline document on this issue, no download needed)**
 - 📄 [<doc title>](<doc url>) — <one line on what's inside; includes pre-answered PM questions + a machine-readable feedback record>
@@ -283,9 +306,12 @@ Live session — a `VARIABLE_UPDATE_STEP` fired on the verify turn:
 → **1** step recorded `customer_name` (live) vs **0** in the Testing Center session. Same agent; the only difference is whether the verify turn actually ran. This is a testing-method limitation, not an agent defect.
 
 **7. Recommendation / product ask**
-1. Persist action-output state across turns by *executing* prior turns (not replaying them as text), **or**
-2. Warn when a multi-turn case depends on a value not in the transcript — today it silently reports FAILURE, **or**
-3. Document the limitation so `expectedActions`/`expectedOutcome` are only trusted when every needed value is in the history text.
+
+| ID | Item | Owner | Status | Resolution |
+|---|---|---|---|---|
+| A1 | Persist action-output state across turns by *executing* prior turns (not replaying them as text) | PM | ⏳ open | — |
+| A2 | Warn when a multi-turn case depends on a value not in the transcript — today it silently reports FAILURE | PM | ⏳ open | — |
+| A3 | Document the limitation so `expectedActions`/`expectedOutcome` are only trusted when every needed value is in the history text | PM | ⏳ open | — |
 
 **8. Questions a PM will ask**
 
@@ -298,7 +324,11 @@ Live session — a `VARIABLE_UPDATE_STEP` fired on the verify turn:
 | Quantified impact? | For the customer's use case, every stateful flow (verify-then-act) is untestable in CI — that's most of their production conversations. |
 | What changes if the ask ships? | Testing Center passes become trustworthy for stateful flows → customer can gate deployment on the suite instead of manual preview sessions. |
 
-**Open questions (couldn't answer from evidence):** whether other customers have silently-passing stateful suites today (needs telemetry PM side).
+**Open questions (couldn't answer from evidence):**
+
+| ID | Item | Owner | Status | Resolution |
+|---|---|---|---|---|
+| Q1 | Reproduced on a chat agent; the gap is channel-independent by mechanism (Testing Center replays prior turns as text regardless of channel), but not yet re-run on the customer's voice channel | FDE | ⏳ open | — |
 
 **9. Appendix** — session IDs, the exact `sf agent preview`/`sf agent test` invocations, and the Data Cloud SQL, with raw JSON in `<details>` blocks.
 
@@ -322,8 +352,8 @@ asks:
 workaround: Validate stateful multi-turn cases with live sf agent preview scripts
 evidence_doc: <doc url>
 open_questions:
-  - How many customers have silently-passing stateful suites today?
-notes: S1/S3 "passes" are false confidence — they re-derive state from credentials left in the history text
+  - "Q1: reproduced on chat; channel-independent by mechanism, not yet re-run on the customer's voice channel"
+notes: S1/S3 "passes" are false confidence — they re-derive state from credentials left in the history text. feature_family matches the intake's Product Feature Family as-is; no refinement needed.
 ```
 
 ### → The summary comment (posted with `save_comment`, `issueId: AFP-###`)
@@ -333,6 +363,8 @@ notes: S1/S3 "passes" are false confidence — they re-derive state from credent
 > Reproduced the multi-turn state gap on a live agent and captured the root cause from the Data Cloud runtime trace.
 >
 > **TL;DR:** Testing Center runs only the final turn live and rebuilds context from the history *text*; any value that existed only as a prior action output (here, the verified name) is lost, so a correct agent looks broken.
+>
+> **Refines the intake:** the intake reads as an agent defect ("agent forgets/loses context mid-conversation"); the evidence shows it's a testing-tool limitation — Testing Center replays prior turns as text rather than executing them, not an agent defect.
 >
 > | Scenario | Live | Testing Center | Match |
 > |---|---|---|---|

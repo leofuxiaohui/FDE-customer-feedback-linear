@@ -7,7 +7,7 @@ Two Claude Code skills that close the loop on **Agentforce customer feedback via
 | [`FDE-customer-feedback-linear/`](FDE-customer-feedback-linear/SKILL.md) | FDE / Solution Engineer | Packages detailed feedback onto a customer-feedback issue (`AFP-*`) as **one in-app evidence Document + a summary comment** — including a pre-answered **"Questions a PM will ask"** section and a machine-readable **`feedback_record` block**. |
 | [`PM-feedback-triage-linear/`](PM-feedback-triage-linear/SKILL.md) | PM (via their coding agent) | **Consumes** that feedback: answers questions about any item with citations, builds cross-customer rollups (by feature, gap type, severity, impact), and posts follow-up questions back on the thread asynchronously. |
 
-The two sides meet on a shared contract: every evidence doc ends with a fenced `feedback_record: v1` YAML block (fixed vocabulary for `gap_type`, `severity`, `customer_impact`, `repro_status`), **and** every triage disposition ends with a fenced `triage_record: v1` YAML block (disposition, accepted/declined asks, owner, loop status) — both defined in the respective SKILL.md files. Human-readable narrative for people; parseable record for agents.
+The two sides meet on a shared contract: every evidence doc ends with a fenced `feedback_record: v1` YAML block (fixed vocabulary for `gap_type`, `severity`, `customer_impact`, `repro_status`), **and** every triage disposition ends with a fenced `triage_record: v1` YAML block (disposition, accepted/declined asks, owner, loop status) — both defined in the respective SKILL.md files. Human-readable narrative for people; parseable record for agents. Stable item IDs (`A#`/`Q#`/`F#`/`P#`) are the join key between the human-readable **register** (the ask/answer ledger in comments) and the machine records — the same `A1` appears in both.
 
 ```mermaid
 flowchart LR
@@ -21,9 +21,11 @@ flowchart LR
     N -.-> FDE
 ```
 
-The loop targets **≤ 2 FDE↔PM round-trips** and ends only when the disposition is written to the issue's own fields — not just the thread.
+The loop **converges, rather than counts** — each exchange must shrink the open set of items, and stalling or backsliding is the cue to escalate to a sync — and ends only when the disposition is written to the issue's own fields — not just the thread.
 
 ## The no-meeting flow
+
+The loop assumes **two participants** (an FDE/SE and a PM), each driving their own coding agent; a single person can role-play both to rehearse it, but ownership hand-offs are real only with two identities.
 
 1. **FDE/SE** gathers evidence for a product gap (transcripts, test results, traces) and tells their coding agent: *"share this customer feedback on AFP-123 as an in-app doc + summary comment."*
 2. The agent (via the FDE skill) reads the issue's intake fields, drafts the structured doc — verdict → evidence → root cause → asks → **pre-answered PM questions** → machine-readable record — links it to the issue, and posts the summary comment.

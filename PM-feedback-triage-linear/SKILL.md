@@ -78,12 +78,27 @@ notes: <optional nuance>
 
 ## Procedure
 
+### The register (ask/answer ledger)
+
+Every **item** in the loop — an ask, a question, a follow-up, a decision — lives in a **register table with a stable ID and a status token**, never as a loose bullet. Prose is for rationale *around* the register. The same table shape runs from the first ask to the close, and the **closing comment carries the complete register** so the outcome reads in one scan.
+
+| ID | Item | Owner | Status | Resolution |
+|---|---|---|---|---|
+| A1 | \<the item, one line\> | PM | ⏳ open | — |
+
+**Status tokens:** ⏳ open · 📋 accepted · 🔎 sized (accepted in principle, lives in an epic) · 🔴 blocked (needs customer / external input) · ✅ resolved · ❌ declined (reason in prose)
+
+**ID prefixes:** `A#` = FDE ask · `Q#` = FDE evidence-limit question (about the boundary of the FDE's own investigation) · `F#` = PM follow-up to the FDE · `P#` = PM-owned triage action (e.g. a telemetry pull)
+
+IDs are also the join key to the machine records: an `A1` in the register is the same `A1` referenced in `feedback_record`/`triage_record`.
+
 ### A. Understand one feedback item
 1. `get_issue AFP-###` — read the intake description and note the customer/feature fields.
 2. `list_comments` on the issue — find the summary comment and any thread discussion since.
 3. The issue's `documents` list names its evidence docs — `get_document` each; read TL;DR → verdict → root cause → asks → PM-questions section → the record block.
 4. Answer the PM's question **with citations**: issue ID, doc title + URL, and section. Distinguish FDE-asserted facts from your inferences.
-5. If the PM has follow-ups the doc doesn't answer: check the doc's *open questions* first (the FDE may have flagged exactly that), then draft the questions and — on the PM's confirmation — post them as a `save_comment` on the issue thread.
+5. If the PM has follow-ups the doc doesn't answer: check the doc's *open questions* first (the FDE may have flagged exactly that), then draft the questions **as register rows** (`F#`, Owner = FDE or customer, Status ⏳ open or 🔴 blocked if customer-dependent) — not loose bullets — and, on the PM's confirmation, post them as a `save_comment` on the issue thread.
+6. **Prevalence is a PM question.** When triaging, raise blast-radius / prevalence questions yourself as `P#` register items (e.g. "pull telemetry on how many suites are affected") — do not expect the FDE to supply prevalence; the FDE only has their one case.
 
 ### B. Aggregate across many items
 1. Enumerate candidates: `list_issues` with `team: "Agentforce Feedback"` (filter by `createdAt`/`updatedAt` for a time window, or `query` for a feature keyword). Page through — don't stop at the first page.
@@ -93,11 +108,21 @@ notes: <optional nuance>
 5. Collect every record's `open_questions` into a "needs FDE input" list; offer to post each back to its issue thread as a comment.
 
 ### C. Close the loop asynchronously
-- Post PM follow-ups as comments on the specific issue (`save_comment` with `issueId`) — the FDE answers on the thread.
+- Post PM follow-ups as register rows (`F#`, Status ⏳ open) in a comment on the specific issue (`save_comment` with `issueId`) — the FDE answers on the thread by updating the row's status.
 - If the PM disposition is "accepted / roadmap / duplicate-of-X / needs-more-evidence", offer to post that as a comment too, so the FDE isn't left waiting.
 
 ### D. Record the decision on the issue
 1. Draft the disposition (using the enums above) and show it to the PM. **Only on the PM's explicit confirmation** (this preserves the "don't silently mutate" guardrail — see Guardrails below) apply it to the issue itself via `save_issue`: set `state` (e.g. Backlog → Planned/Canceled per disposition), `priority`, and add a label for the feature family if one exists. The issue's own fields are the source of truth; the comment is the rationale.
+
+   | `disposition` | Linear issue state |
+   |---|---|
+   | `planned` | Todo (or In Progress once work starts) |
+   | `shipped` | Done |
+   | `wontfix` | Canceled |
+   | `duplicate` | Duplicate |
+   | `needs-evidence` | Triage |
+
+   Also set **`assignee`** to the current owner of the next action, so the board shows who's up — reassign as ownership moves across rounds.
 2. Post the disposition comment **threaded under the FDE's summary comment** (`save_comment` with `parentId: <FDE comment id>`), ending with the fenced `triage_record: v1` block.
 3. If `disposition: planned`, link the target epic/project in the comment; if `wontfix`, state the reason in prose above the record; if `duplicate`, also post a one-liner on the duplicate target issue pointing back.
 4. Report what was changed on the issue and what the record says.
@@ -106,7 +131,7 @@ notes: <optional nuance>
 
 - **Terminal states:** `planned`, `shipped`, `wontfix`, `duplicate` are **closed**; `needs-evidence` is **parked** (open, ball with FDE).
 - **The three-part closure test** (all must hold): (1) every `open_questions` entry from the `feedback_record` is answered on the thread; (2) the disposition is committed to the issue's own fields (state/priority/label), not just prose; (3) a closing comment states it so CS/FDE/customer can see the outcome.
-- **Convergence rule:** target ≤ 2 FDE↔PM round-trips. Each round must reduce the count of open questions; if a round *adds* more than it closes, or two rounds pass without convergence, say so and recommend the PM book a sync — the skills eliminate routine meetings, not genuine deadlocks.
+- **Converge, don't count.** Each exchange must *shrink the open set* in the register. If open items aren't trending to zero — or a round adds more than it closes — that's the signal to escalate to a sync. The skills remove *routine* meetings, not genuine deadlocks. (Most items settle in one or two exchanges; treat that as observation, never a pass/fail bar.)
 
 ## Rollup document template
 
@@ -150,6 +175,8 @@ notes: <optional nuance>
 - **Respect the record.** Where a record and your prose-reading disagree, the record wins; note the discrepancy.
 - **Confidentiality.** Rollups may name customers — treat outputs as internal; don't paste them to external channels.
 - **Every hand-off names an owner.** Follow-up questions posted to the thread must say who owes the answer (`loop_status: open-with-FDE` / `open-with-customer`); a question that requires customer input must be flagged `(customer-dependent)` so the FDE knows to schedule a customer touch rather than answer from the desk.
+- **Prevalence is yours.** How-many-customers / how-widespread questions are PM triage actions (`P#`), never FDE asks — the FDE sees one customer.
+- **Never invent specifics.** Don't manufacture customer detail, quantified impact, or telemetry to make a triage look complete. If a number isn't known, say so and make obtaining it a `P#` action. Any illustrative/simulated value must be labelled — and preferred qualitative over a fake-precise figure.
 
 ## Worked example
 
@@ -168,7 +195,16 @@ Two filled instances to imitate — a single-item triage, and the cross-feature 
 | Impact | `confidence-loss, productivity-loss` |
 | Repro | `reproduced-live`, root cause proven via the Data Cloud trace — evidence quality high, no further validation needed |
 
-**Disposition:** Accepted. The near-term ask — warn when a case depends on a value not present in the transcript — ships fastest since it's detectable at authoring time. The execution-model ask — persist action-output state by executing prior turns — is the real fix but heavier; routing it to the multi-turn testing epic for sizing. The documentation ask (state the replay limitation so PASS/FAIL is trusted correctly) is immediate and ships alongside the warning.
+**Register**
+
+| ID | Item | Owner | Status | Resolution |
+|---|---|---|---|---|
+| A1 | Persist action-output state across turns by executing prior turns (execution-model fix) | PM | 🔎 sized | Routed to the multi-turn testing epic — the real fix, but heavier |
+| A2 | Warn when a case depends on a value not present in the transcript | PM | 📋 accepted | Ships fastest — detectable at authoring time |
+| A3 | Document the state-replay limitation so PASS/FAIL is trusted correctly | PM | ✅ resolved | Immediate; ships alongside A2 |
+| P1 | Pull telemetry on how many other multi-turn suites are silently passing | PM | ⏳ open | — |
+
+**Disposition:** Accepted, per the register above. A1 is the real fix but heavier, so it's routed to the epic rather than blocking the near-term ship; A2 and A3 ship together now. P1 (prevalence) is the PM's own action, not a question for the FDE.
 
 ```yaml
 triage_record: v1
@@ -176,17 +212,17 @@ issue: AFP-###
 date: 2026-07-20
 disposition: planned
 accepted_asks:
-  - Warn when a multi-turn case depends on a value not present in the transcript (near-term, authoring-time check)
-  - Document the state-replay limitation so PASS/FAIL is trusted correctly (immediate)
+  - Warn when a multi-turn case depends on a value not present in the transcript (A2 — near-term, authoring-time check)
+  - Document the state-replay limitation so PASS/FAIL is trusted correctly (A3 — immediate)
 target: multi-turn testing epic
 owner: FDE
-next_action: FDE confirms the warning is feasible at authoring time and answers whether other customers have silently-passing stateful suites
+next_action: FDE confirms the warning (A2) is feasible at authoring time; PM runs the P1 telemetry pull separately
 loop_status: open-with-FDE
 decided_date: 2026-07-20
-notes: Execution-model ask (persist action-output state) accepted in principle; sized separately in the epic, not blocking the near-term ship
+notes: Execution-model ask (A1) accepted in principle; sized separately in the epic, not blocking the near-term ship. A material share of multi-turn suites likely depend on prior-turn action outputs; exact count pending the P1 telemetry pull — no hard number yet.
 ```
 
-On the PM's confirmation, the agent applied the disposition to `AFP-###` itself per Procedure D: `state` → Planned, `priority` raised, and label `testing-center` added.
+On the PM's confirmation, the agent applied the disposition to `AFP-###` itself per Procedure D: `state` → Todo (per the disposition→state mapping, `planned` → Todo), `priority` raised, label `testing-center` added, and `assignee` set to the FDE — the current owner of A2's next action.
 
 ### 2. Cross-feature rollup (Procedure B)
 
