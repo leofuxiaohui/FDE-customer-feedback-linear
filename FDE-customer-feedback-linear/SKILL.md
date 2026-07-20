@@ -1,11 +1,15 @@
 ---
 name: FDE-customer-feedback-linear
-description: Use when an FDE or Solution Engineer wants to share detailed Agentforce customer feedback via Linear — attach it to the customer-feedback intake issue (AFP-*) as one self-contained in-app Linear Document plus a concise summary comment on the thread, so PMs review everything without downloading anything. Turns evidence the FDE/SE has already gathered into a triage-ready write-up. Works for any feature (Testing Center, Agent Script, Voice, Builder, etc.).
+description: Use when an FDE or Solution Engineer wants to share detailed Agentforce customer feedback via Linear — attach it to the customer-feedback intake issue (AFP-*) as one self-contained in-app Linear Document plus a concise summary comment on the thread, so PMs review everything without downloading anything and without needing a meeting. The doc includes an anticipated-PM-questions section and a machine-readable feedback-record block that the companion PM-feedback-triage-linear skill (a PM's coding agent) can parse for cross-customer insights. Works for any feature (Testing Center, Agent Script, Voice, Builder, etc.).
 ---
 
 # FDE Customer Feedback → Linear
 
 A standalone skill dedicated to sharing **Agentforce customer feedback** via Linear. Package detailed feedback into a target customer-feedback issue as **(1)** one self-contained **in-app Document** (the deep dive) and **(2)** a concise **summary comment** on the thread that links the doc. Everything stays inside Linear — no attachments to download.
+
+**Design goal: no meeting needed.** The doc must let a PM (or a PM's coding agent, via the companion `PM-feedback-triage-linear` skill) fully understand and triage the feedback asynchronously. Two features serve that goal:
+- a **"Questions a PM will ask"** section that pre-answers the follow-ups a PM would otherwise schedule a call for, and explicitly flags what the FDE/SE could *not* answer;
+- a **machine-readable `feedback-record` block** (fixed vocabulary, defined below) at the end of every doc, so PM agents can parse and aggregate feedback across many issues reliably.
 
 This skill handles **packaging and posting**. It does *not* gather the evidence (that is feature-specific) — the FDE/SE brings the evidence; you structure and publish it.
 
@@ -35,11 +39,14 @@ Feedback issues (`AFP-*`) live in the **`eventsmobileapp`** workspace, team **"A
 
 1. **Verify + read context.** `get_issue <id>`. Read the intake fields (**Customer Name, Product Feature Family/Group, Feedback Theme, Business Outcome/Use Case**) and tailor the framing so the evidence visibly answers the customer's stated need — quote it where useful.
 2. **Draft the doc** from the *Evidence document template* below. Fill only the sections that apply. Keep raw data/logs/queries inside collapsible `<details>` blocks so the main narrative stays clean and scannable. Lead with the strongest proof.
-3. **Create the doc linked to the issue:** `save_document` with `issue: <id>`, a clear `title`, and the markdown `content`.
+3. **Pre-answer the PM.** Generate the *"Questions a PM will ask"* section: put yourself in the triaging PM's seat and answer the standard follow-ups (see the checklist in the template — scope, regression-vs-always, frequency, workaround, quantified impact, what-changes-if-fixed). Where the FDE/SE can't answer from the evidence, ask them once; anything still unanswered goes in **open questions** — flagged, not omitted. This section is what replaces the meeting.
+4. **Emit the `feedback-record` block** (schema below) as the last section of the doc. Derive values from the evidence and intake fields; **use only the fixed vocabulary** for the enum fields — if none fits, use the closest and note the nuance in `notes`. Confirm `severity` and `customer_impact` with the FDE/SE if not obvious — these drive PM prioritization rollups.
+5. **Create the doc linked to the issue:** `save_document` with `issue: <id>`, a clear `title`, and the markdown `content`.
    - **Do not pass `icon`** unless you know it is a valid Linear icon name — an invalid icon name errors the whole call. Omit it.
-4. **Post the summary comment:** `save_comment` with `issueId: <id>` using the *Summary comment template* below — a TL;DR, a compact results table if applicable, the ask, and a link to the doc.
-5. **Binary evidence only** (screenshots, PDFs that must be seen as images): use the attachment flow — `prepare_attachment_upload` (needs the exact byte size) → PUT the raw bytes to the returned signed URL with `curl --data-binary @file`, sending the returned headers **verbatim**, within 60s, **one file at a time** → `create_attachment_from_upload`. Prefer inline docs; attach a binary only when the picture *is* the evidence. (Linear does **not** render HTML attachments inline — never ship an HTML file as the deliverable; put the narrative in the doc.)
-6. **Report** the doc URL and confirm the comment posted.
+   - The create call returns the doc URL. **Update the doc once more** (`save_document` with `id: <doc id>`) to fill `evidence_doc:` in the record block with that URL, so the record is self-locating.
+6. **Post the summary comment:** `save_comment` with `issueId: <id>` using the *Summary comment template* below — a TL;DR, a compact results table if applicable, the ask, open questions (if any), and a link to the doc.
+7. **Binary evidence only** (screenshots, PDFs that must be seen as images): use the attachment flow — `prepare_attachment_upload` (needs the exact byte size) → PUT the raw bytes to the returned signed URL with `curl --data-binary @file`, sending the returned headers **verbatim**, within 60s, **one file at a time** → `create_attachment_from_upload`. Prefer inline docs; attach a binary only when the picture *is* the evidence. (Linear does **not** render HTML attachments inline — never ship an HTML file as the deliverable; put the narrative in the doc.)
+8. **Report** the doc URL and confirm the comment posted.
 
 ## Conventions & guardrails
 
@@ -48,6 +55,40 @@ Feedback issues (`AFP-*`) live in the **`eventsmobileapp`** workspace, team **"A
 - **Sanitize before posting.** Use mock/sample data; scrub org IDs, customer PII, tokens, and internal endpoints. State explicitly when data shown is mock.
 - **Retiring a doc:** the Linear MCP has **no delete/archive-document tool**. To retire a doc, rename it to a `↪ Merged — archive me` stub whose body links the surviving doc, and ask the user to archive it in-app (hover the doc → ⋯ → **Archive**).
 - **Markdown, not HTML.** Linear renders markdown tables, code fences, blockquotes, and `<details>` — use those. It will not render an HTML file inline.
+
+---
+
+## The `feedback-record` schema (v1)
+
+Every evidence doc ends with exactly one fenced ```yaml block starting with `feedback_record: v1`. This is the machine-readable contract the companion `PM-feedback-triage-linear` skill parses — keep field names and enum values exact.
+
+```yaml
+feedback_record: v1
+issue: AFP-###                # the Linear issue identifier
+date: YYYY-MM-DD
+customer: <name from intake, or internal-demo>
+feature_family: <Testing Center | Agent Script | Agent Builder | Voice | Data Cloud | Other — free text allowed, prefer the intake's Product Feature Family>
+gap_type: bug | limitation | feature-request | docs-gap          # exactly one
+severity: blocker | workaround-exists | inconvenience            # exactly one
+customer_impact: adoption-blocking | deal-risk | productivity-loss | confidence-loss   # one or more, comma-separated
+repro_status: reproduced-live | reported-only | intermittent | not-reproducible        # exactly one
+root_cause_known: true | false
+root_cause: <one line; empty if unknown>
+asks:
+  - <primary ask, one line>
+  - <alternative / interim, one line>
+workaround: <one line, or "none">
+evidence_doc: <this doc's Linear URL — fill after save_document returns it, via a second save_document update, or leave as pending>
+open_questions:
+  - <anything the FDE/SE could not answer — omit the list only if truly empty>
+notes: <optional nuance, e.g. why an enum was a near-fit>
+```
+
+**Enum meanings** (pick honestly — PM rollups depend on these being comparable across FDEs):
+- `gap_type` — `bug` (behaves contrary to design), `limitation` (works as designed but the design falls short), `feature-request` (net-new capability), `docs-gap` (capability exists, discoverability/guidance doesn't).
+- `severity` — `blocker` (customer cannot proceed), `workaround-exists` (proceeding, but painfully), `inconvenience` (annoyance, low friction).
+- `customer_impact` — `adoption-blocking`, `deal-risk`, `productivity-loss`, `confidence-loss` (erodes trust in the product, e.g. false test passes).
+- `repro_status` — `reproduced-live` (you reproduced it yourself), `reported-only` (customer report, not yet reproduced), `intermittent`, `not-reproducible`.
 
 ---
 
@@ -66,7 +107,9 @@ Use as the `content` for `save_document`. Delete sections that don't apply; rena
 5. Root cause (if known)
 6. Why it matters
 7. Recommendation / product ask
-8. Appendix — reproduction & raw data
+8. Questions a PM will ask
+9. Appendix — reproduction & raw data
+10. Machine-readable record
 
 ---
 
@@ -109,7 +152,23 @@ Use as the `content` for `save_document`. Delete sections that don't apply; rena
 2. **<Alternative / interim>** — <a lighter mitigation, e.g. a warning or doc>.
 3. **Until then** — <workaround FDEs/SEs or customers can use today>.
 
-## 8. Appendix — reproduction & raw data
+## 8. Questions a PM will ask
+<Pre-answer the follow-ups that would otherwise require a meeting. Cover at least:>
+
+| Question | Answer |
+|---|---|
+| Which customers / how many are affected? | <…> |
+| Regression or always been this way? | <…> |
+| How often does it bite (every time / edge case)? | <…> |
+| Is there a workaround, and is the customer using it? | <…> |
+| Can we quantify the impact (time lost, deals, scale)? | <…> |
+| What changes for the customer if the ask ships? | <…> |
+| <feature-specific question you'd expect> | <…> |
+
+**Open questions (couldn't answer from evidence):**
+- <flagged explicitly — the PM can reply on the thread instead of booking a call>
+
+## 9. Appendix — reproduction & raw data
 - **Environment / IDs:** <org, agent, versions, session/run IDs>
 - **Repro steps / commands:** <exact steps or CLI>
 - <details><summary>Raw data / queries / logs</summary>
@@ -120,6 +179,10 @@ Use as the `content` for `save_document`. Delete sections that don't apply; rena
   </details>
 
 *Any sensitive values shown are mock/sanitized.*
+
+## 10. Machine-readable record
+
+<the fenced yaml `feedback_record: v1` block, per the schema above>
 ```
 
 ---
@@ -141,8 +204,11 @@ Use as the `body` for `save_comment`. Keep it short — it's the thread-level ho
 1. <primary ask>
 2. <alternative / interim>
 
+**Open questions for PM** *(omit if none)*
+- <what the FDE/SE couldn't answer — reply here on the thread, no meeting needed>
+
 **Full write-up (inline document on this issue, no download needed)**
-- 📄 [<doc title>](<doc url>) — <one line on what's inside>
+- 📄 [<doc title>](<doc url>) — <one line on what's inside; includes pre-answered PM questions + a machine-readable feedback record>
 
 *<optional: "Prepared from a live investigation; data shown is mock.">*
 ```
@@ -159,7 +225,7 @@ Title: **"Multi-turn testing gap — evidence pack (Live Preview vs Testing Cent
 
 > **TL;DR.** Agentforce Testing Center executes only the **final** turn of a multi-turn test live and rebuilds context from the `conversationHistory` **text**. Any value that existed solely as a prior **action output** is lost — so a correct agent looks broken. And some cases *pass* only because credentials happened to sit in the history text, which is false confidence.
 
-**Contents:** 1. Context · 2. Verdict · 3. Evidence (the conversations) · 4. Why they differ · 5. Testing Center results · 6. Root-cause proof · 7. Asks · 8. Appendix
+**Contents:** 1. Context · 2. Verdict · 3. Evidence (the conversations) · 4. Why they differ · 5. Testing Center results · 6. Root-cause proof · 7. Asks · 8. PM questions · 9. Appendix · 10. Machine-readable record
 
 **1. Context**
 - Feature: Testing Center (multi-turn `sf agent test`)
@@ -208,7 +274,44 @@ Live session — a `VARIABLE_UPDATE_STEP` fired on the verify turn:
 2. Warn when a multi-turn case depends on a value not in the transcript — today it silently reports FAILURE, **or**
 3. Document the limitation so `expectedActions`/`expectedOutcome` are only trusted when every needed value is in the history text.
 
-**8. Appendix** — session IDs, the exact `sf agent preview`/`sf agent test` invocations, and the Data Cloud SQL, with raw JSON in `<details>` blocks.
+**8. Questions a PM will ask**
+
+| Question | Answer |
+|---|---|
+| Which customers are affected? | Any customer building stateful multi-turn agents who relies on Testing Center for pre-deployment validation; reported by one enterprise customer, reproduced on a demo agent. |
+| Regression or always been this way? | By design — Testing Center's multi-turn model has always replayed history as text. Not a regression. |
+| How often does it bite? | Every multi-turn case whose expected answer depends on a prior action's *output*; masked whenever the needed value happens to be in the transcript text. |
+| Workaround? | Validate stateful cases with live `sf agent preview` scripts. Customer is doing this; it doesn't scale and isn't CI-friendly. |
+| Quantified impact? | For the customer's use case, every stateful flow (verify-then-act) is untestable in CI — that's most of their production conversations. |
+| What changes if the ask ships? | Testing Center passes become trustworthy for stateful flows → customer can gate deployment on the suite instead of manual preview sessions. |
+
+**Open questions (couldn't answer from evidence):** whether other customers have silently-passing stateful suites today (needs telemetry PM side).
+
+**9. Appendix** — session IDs, the exact `sf agent preview`/`sf agent test` invocations, and the Data Cloud SQL, with raw JSON in `<details>` blocks.
+
+**10. Machine-readable record**
+
+```yaml
+feedback_record: v1
+issue: AFP-###
+date: 2026-07-20
+customer: internal-demo
+feature_family: Testing Center
+gap_type: limitation
+severity: workaround-exists
+customer_impact: confidence-loss, productivity-loss
+repro_status: reproduced-live
+root_cause_known: true
+root_cause: Testing Center executes only the final turn; prior turns are static text, so action-output state is never created
+asks:
+  - Persist action-output state across turns by executing prior turns
+  - Warn when a case depends on a value not present in the transcript
+workaround: Validate stateful multi-turn cases with live sf agent preview scripts
+evidence_doc: <doc url>
+open_questions:
+  - How many customers have silently-passing stateful suites today?
+notes: S1/S3 "passes" are false confidence — they re-derive state from credentials left in the history text
+```
 
 ### → The summary comment (posted with `save_comment`, `issueId: AFP-###`)
 

@@ -1,47 +1,47 @@
-# FDE-customer-feedback-linear (Claude Code skill)
+# FDE-customer-feedback-linear
 
-A standalone skill for sharing **Agentforce customer feedback via Linear**. Turns detailed FDE/SE feedback into a triage-ready **Linear in-app Document + summary comment** on a target customer-feedback issue (the intake, `AFP-*`). Feature-agnostic — works for Testing Center, Agent Script, Voice, Builder, etc. No downloadable attachments: reviewers stay in Linear.
+Two Claude Code skills that close the loop on **Agentforce customer feedback via Linear** — so FDEs/SEs and PMs don't need a meeting to understand it:
 
-## What an FDE/SE gets
+| Skill | Who runs it | What it does |
+|---|---|---|
+| [`FDE-customer-feedback-linear/`](FDE-customer-feedback-linear/SKILL.md) | FDE / Solution Engineer | Packages detailed feedback onto a customer-feedback issue (`AFP-*`) as **one in-app evidence Document + a summary comment** — including a pre-answered **"Questions a PM will ask"** section and a machine-readable **`feedback_record` block**. |
+| [`PM-feedback-triage-linear/`](PM-feedback-triage-linear/SKILL.md) | PM (via their coding agent) | **Consumes** that feedback: answers questions about any item with citations, builds cross-customer rollups (by feature, gap type, severity, impact), and posts follow-up questions back on the thread asynchronously. |
 
-For any issue they point it at, the skill:
-1. verifies the Linear MCP is on the right workspace (`eventsmobileapp` / "Agentforce Feedback");
-2. reads the issue's intake fields so the write-up answers the customer's stated need;
-3. drafts **one self-contained evidence document** (verdict → evidence → expected-vs-actual → root cause → why it matters → ask → appendix, with raw data tucked into collapsible blocks);
-4. links it under the issue and posts a **concise summary comment** with the link.
+The two sides meet on a shared contract: every evidence doc ends with a fenced `feedback_record: v1` YAML block (fixed vocabulary for `gap_type`, `severity`, `customer_impact`, `repro_status`), defined in both SKILL.md files. Human-readable narrative for people; parseable record for agents.
 
-The FDE/SE supplies the evidence (transcripts, data, screenshots, root cause, the ask); the skill structures and publishes it.
+## The no-meeting flow
+
+1. **FDE/SE** gathers evidence for a product gap (transcripts, test results, traces) and tells their coding agent: *"share this customer feedback on AFP-123 as an in-app doc + summary comment."*
+2. The agent (via the FDE skill) reads the issue's intake fields, drafts the structured doc — verdict → evidence → root cause → asks → **pre-answered PM questions** → machine-readable record — links it to the issue, and posts the summary comment.
+3. **PM** asks their coding agent (via the PM skill): *"what's AFP-123 about?"*, *"top asks across Testing Center feedback this quarter?"*, or *"draft my follow-ups for AFP-123."*
+4. Remaining questions travel as **thread comments**, not calls.
 
 ## Install
 
-The skill folder is `FDE-customer-feedback-linear/` (the folder containing `SKILL.md`).
+Each skill is a folder containing a `SKILL.md`. Copy the folder(s) you need into your skills location:
 
-**Team-shared (recommended).** Place `FDE-customer-feedback-linear/` into your team's skills location — either:
-- a repo folder that syncs to `~/.claude/skills/` (or `.claude/skills/` in a shared project), or
-- your team's Claude Code **plugin** skills directory.
+- **Personal:** `~/.claude/skills/FDE-customer-feedback-linear/` and/or `~/.claude/skills/PM-feedback-triage-linear/`
+- **Team-shared:** your team's synced skills repo or Claude Code plugin skills directory.
 
-**Personal / try it out.** Copy `FDE-customer-feedback-linear/` into `~/.claude/skills/`. Cloning this repo directly into `~/.claude/skills/FDE-customer-feedback-linear/` also works.
-
-Each user needs the **Linear MCP** connected. Feedback issues live in the `eventsmobileapp` workspace — if `get_issue AFP-###` fails, reconnect via `/mcp` → linear → pick `eventsmobileapp`.
+Each user needs the **Linear MCP** connected. Feedback issues live in the `eventsmobileapp` workspace (team "Agentforce Feedback") — if `get_issue AFP-###` fails, reconnect via `/mcp` → linear → pick `eventsmobileapp`.
 
 ## Use
 
-In Claude Code:
-
 ```
-/FDE-customer-feedback-linear
+/FDE-customer-feedback-linear     # FDE/SE: share feedback onto an AFP issue
+/PM-feedback-triage-linear        # PM: understand / roll up / follow up on feedback
 ```
 
-or just ask: *"share this customer feedback on AFP-123 as an in-app doc + summary comment."* Provide the target issue, the feature area, and your evidence. Claude will ask for anything missing, then draft, post, and return the links.
+Or in plain language: *"share this customer feedback on AFP-123…"* / *"build a rollup of this month's Agentforce feedback."*
 
 ## Requirements
 
 - Claude Code with skills enabled.
 - Linear MCP connected (with access to the target workspace).
-- `curl` available (only needed if attaching binary evidence like screenshots).
+- `curl` (FDE skill only, and only for binary evidence like screenshots).
 
 ## Notes / known constraints
 
-- Linear renders markdown (tables, code, `<details>`) but **not** HTML attachments inline — the deliverable is always a markdown doc, never an HTML file.
-- The Linear MCP has **no delete/archive-document** capability; to retire a doc, the skill renames it to a redirect stub and asks you to archive it in-app.
-- Always sanitize org IDs / customer PII / tokens before posting.
+- Linear renders markdown (tables, code, `<details>`) but **not** HTML attachments inline — deliverables are always markdown docs.
+- The Linear MCP has **no delete/archive-document** capability; retiring a doc means renaming it to a redirect stub and archiving in-app.
+- Always sanitize org IDs / customer PII / tokens before posting. Rollups may name customers — keep them internal.
