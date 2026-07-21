@@ -9,6 +9,8 @@ Two Claude Code skills that close the loop on **Agentforce customer feedback via
 
 The two sides meet on a shared contract: every evidence doc ends with a fenced `feedback_record: v1` YAML block (fixed vocabulary for `gap_type`, `severity`, `customer_impact`, `repro_status`), **and** every triage disposition ends with a fenced `triage_record: v1` YAML block (disposition, accepted/declined asks, owner, loop status) — both defined in the respective SKILL.md files. Human-readable narrative for people; parseable record for agents. Stable item IDs (`A#`/`Q#`/`F#`/`P#`) are the join key between the human-readable **register** (the ask/answer ledger in comments) and the machine records — the same `A1` appears in both.
 
+Registers in comments stay terse — labels, not sentences (see each SKILL.md); the machine records carry the full text.
+
 ```mermaid
 flowchart LR
     CS["CS files intake<br/>AFP-* issue"] --> FDE["FDE/SE agent<br/>evidence doc + comment<br/>+ feedback_record"]
@@ -19,6 +21,9 @@ flowchart LR
     D --> W["wontfix / duplicate"]
     D --> N["needs-evidence<br/>parked with FDE"]
     N -.-> FDE
+    P --> Track["tracked work issues<br/>by register ID"]
+    Track --> Ship["shipped"]
+    Ship --> CloseBack["CS relays outcome<br/>to customer"]
 ```
 
 The loop **converges, rather than counts** — each exchange must shrink the open set of items, and stalling or backsliding is the cue to escalate to a sync — and ends only when the disposition is written to the issue's own fields — not just the thread.
@@ -32,6 +37,7 @@ The loop assumes **two participants** (an FDE/SE and a PM), each driving their o
 3. **PM** asks their coding agent (via the PM skill): *"what's AFP-123 about?"*, *"top asks across Testing Center feedback this quarter?"*, or *"draft my follow-ups for AFP-123."*
 4. Remaining questions travel as **thread comments**, not calls.
 5. **PM disposition** — the PM's agent records the decision on the issue itself (state/priority/label) and posts a `triage_record`; the loop is closed when open questions are resolved and the disposition is on the issue, or explicitly parked (`needs-evidence`).
+6. **Delivery & close-back** — accepted asks become tracked work issues (titled by register ID), their completion rolls status up to the feedback issue, and a close-back comment tells CS what shipped so the customer hears the outcome. The loop closes at the customer, not at the decision.
 
 ## Install
 

@@ -58,6 +58,7 @@ Feedback issues (`AFP-*`) live in the **`eventsmobileapp`** workspace, team **"A
 - **Every hand-off names an owner.** When you post open questions for the PM, say explicitly the ball is with the PM. When answering PM follow-ups, flag any question that needs *customer* input as `(customer-dependent)` — it can't be answered from the desk, and the thread should show that the delay is a customer touch, not FDE silence.
 - **Never invent specifics.** Don't fabricate customer detail, channel mechanics, or quantified impact to fill the template. You have one customer's evidence — stay inside it. Mark any illustrative/simulated value explicitly, and prefer "not quantified" over a fake-precise number.
 - **Lead each loop comment with a one-line state banner** — e.g. `Round 2 · FDE → PM · 2 open (F1, F2)` — so a reader sees the round, direction, and what's outstanding before the detail.
+- **The loop isn't done at the PM's disposition** — accepted asks become tracked work issues (by register ID) and the outcome returns to the customer via CS. See the PM skill's *From decision to delivery*. As FDE, when asked, confirm delivery details for your customer and relay the shipped outcome.
 
 ---
 
@@ -74,6 +75,23 @@ Every **item** in the loop — an ask, a question, a follow-up, a decision — l
 **ID prefixes:** `A#` = FDE ask · `Q#` = FDE evidence-limit question (about the boundary of the FDE's own investigation) · `F#` = PM follow-up to the FDE · `P#` = PM-owned triage action (e.g. a telemetry pull)
 
 IDs are also the join key to the machine records: an `A1` in the register is the same `A1` referenced in `feedback_record`/`triage_record`.
+
+#### Keep the register readable
+
+The register is an **index, not the content** — every cell is a short **label (≤ ~6 words)**, never a sentence. The full ask, answer, and rationale live in the prose around the table. Two layouts, by round:
+
+- **Posing a round** (asks/questions, no answers yet): a terse **4-column** table — omit `Resolution` entirely until answers exist:
+
+  | ID | Item | Owner | Status |
+  |---|---|---|---|
+  | A1 | Execute prior turns to persist state | PM | ⏳ open |
+
+- **Answering / closing** (resolutions carry reasoning): use **stacked entries**, one per item, so each gets full comment width:
+
+  > **A1 · 🔎 sized · owner PM** — Execute prior turns to persist state
+  > → *Resolution:* accepted in principle; sized in the multi-turn epic.
+
+Re-post only the rows that **changed** each round; the **complete register appears once, at the close**, in stacked form. If a cell needs a clause to be understood, that's the signal it belongs in prose, not the table.
 
 ---
 
@@ -232,16 +250,16 @@ Use as the `body` for `save_comment`. Keep it short — it's the thread-level ho
 
 <optional compact results table — the same one from the doc's section 2>
 
-**Product ask** — register rows, Owner PM, Status ⏳ open until PM triages
-| ID | Item | Owner | Status | Resolution |
-|---|---|---|---|---|
-| A1 | <primary ask> | PM | ⏳ open | — |
-| A2 | <alternative / interim> | PM | ⏳ open | — |
+**Product ask** — register rows (terse labels; full ask in prose above), Owner PM, Status ⏳ open until PM triages
+| ID | Item | Owner | Status |
+|---|---|---|---|
+| A1 | <primary ask, ≤6 words> | PM | ⏳ open |
+| A2 | <alternative / interim, ≤6 words> | PM | ⏳ open |
 
 **Open questions for PM** *(omit if none)* — register rows, Owner FDE, Status ⏳ open
-| ID | Item | Owner | Status | Resolution |
-|---|---|---|---|---|
-| Q1 | <what the FDE/SE couldn't answer — reply here on the thread, no meeting needed> | FDE | ⏳ open | — |
+| ID | Item | Owner | Status |
+|---|---|---|---|
+| Q1 | <evidence-limit label, ≤6 words> | FDE | ⏳ open |
 
 **Full write-up (inline document on this issue, no download needed)**
 - 📄 [<doc title>](<doc url>) — <one line on what's inside; includes pre-answered PM questions + a machine-readable feedback record>
@@ -305,13 +323,13 @@ Live session — a `VARIABLE_UPDATE_STEP` fired on the verify turn:
 
 → **1** step recorded `customer_name` (live) vs **0** in the Testing Center session. Same agent; the only difference is whether the verify turn actually ran. This is a testing-method limitation, not an agent defect.
 
-**7. Recommendation / product ask**
+**7. Recommendation / product ask** *(full asks are in §4/§6 above and in the machine record below; register carries the labels)*
 
-| ID | Item | Owner | Status | Resolution |
-|---|---|---|---|---|
-| A1 | Persist action-output state across turns by *executing* prior turns (not replaying them as text) | PM | ⏳ open | — |
-| A2 | Warn when a multi-turn case depends on a value not in the transcript — today it silently reports FAILURE | PM | ⏳ open | — |
-| A3 | Document the limitation so `expectedActions`/`expectedOutcome` are only trusted when every needed value is in the history text | PM | ⏳ open | — |
+| ID | Item | Owner | Status |
+|---|---|---|---|
+| A1 | Execute prior turns to persist state | PM | ⏳ open |
+| A2 | Warn when a value isn't in the transcript | PM | ⏳ open |
+| A3 | Document the state-replay limitation | PM | ⏳ open |
 
 **8. Questions a PM will ask**
 
@@ -326,9 +344,9 @@ Live session — a `VARIABLE_UPDATE_STEP` fired on the verify turn:
 
 **Open questions (couldn't answer from evidence):**
 
-| ID | Item | Owner | Status | Resolution |
-|---|---|---|---|---|
-| Q1 | Reproduced on a chat agent; the gap is channel-independent by mechanism (Testing Center replays prior turns as text regardless of channel), but not yet re-run on the customer's voice channel | FDE | ⏳ open | — |
+| ID | Item | Owner | Status |
+|---|---|---|---|
+| Q1 | Not yet re-run on voice channel | FDE | ⏳ open |
 
 **9. Appendix** — session IDs, the exact `sf agent preview`/`sf agent test` invocations, and the Data Cloud SQL, with raw JSON in `<details>` blocks.
 

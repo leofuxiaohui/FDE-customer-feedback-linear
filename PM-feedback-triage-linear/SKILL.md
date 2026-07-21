@@ -65,6 +65,9 @@ declined_asks:
   - <asks not taken, with a short "why" in parens; omit if none>
 duplicate_of: <AFP-### — only when disposition: duplicate>
 target: <epic/project/release the work lands in, or "unscheduled">
+tracking:                       # register ID -> delivery work issue; added at planned/shipped
+  A2: <issue-id or url>
+epic: <roadmap parent name/url, or "unscheduled">
 owner: <who carries the next action — a person, "FDE", or "PM">
 next_action: <one line — the single next concrete step>
 loop_status: closed | open-with-FDE | open-with-PM | open-with-customer   # who the ball is with
@@ -75,6 +78,8 @@ notes: <optional nuance>
 **Enum meanings:**
 - `disposition` — `planned` (accepted, scheduled on roadmap/epic), `shipped` (fix released), `wontfix` (declined, reason required in the comment), `duplicate` (fold into `duplicate_of`), `needs-evidence` (parked; ball with FDE until evidence arrives).
 - `loop_status` — `closed` (all open_questions resolved AND disposition committed to issue fields AND stated on thread), else `open-with-<role>` naming who owes the next move.
+
+`tracking` is filled once the decision becomes tracked work (Procedure E); before that, omit it.
 
 ## Procedure
 
@@ -91,6 +96,23 @@ Every **item** in the loop — an ask, a question, a follow-up, a decision — l
 **ID prefixes:** `A#` = FDE ask · `Q#` = FDE evidence-limit question (about the boundary of the FDE's own investigation) · `F#` = PM follow-up to the FDE · `P#` = PM-owned triage action (e.g. a telemetry pull)
 
 IDs are also the join key to the machine records: an `A1` in the register is the same `A1` referenced in `feedback_record`/`triage_record`.
+
+#### Keep the register readable
+
+The register is an **index, not the content** — every cell is a short **label (≤ ~6 words)**, never a sentence. The full ask, answer, and rationale live in the prose around the table. Two layouts, by round:
+
+- **Posing a round** (asks/questions, no answers yet): a terse **4-column** table — omit `Resolution` entirely until answers exist:
+
+  | ID | Item | Owner | Status |
+  |---|---|---|---|
+  | A1 | Execute prior turns to persist state | PM | ⏳ open |
+
+- **Answering / closing** (resolutions carry reasoning): use **stacked entries**, one per item, so each gets full comment width:
+
+  > **A1 · 🔎 sized · owner PM** — Execute prior turns to persist state
+  > → *Resolution:* accepted in principle; sized in the multi-turn epic.
+
+Re-post only the rows that **changed** each round; the **complete register appears once, at the close**, in stacked form. If a cell needs a clause to be understood, that's the signal it belongs in prose, not the table.
 
 ### A. Understand one feedback item
 1. `get_issue AFP-###` — read the intake description and note the customer/feature fields.
@@ -127,13 +149,25 @@ IDs are also the join key to the machine records: an `A1` in the register is the
 3. If `disposition: planned`, link the target epic/project in the comment; if `wontfix`, state the reason in prose above the record; if `duplicate`, also post a one-liner on the duplicate target issue pointing back.
 4. Report what was changed on the issue and what the record says.
 
+### E. From decision to delivery (close the real loop)
+
+A `planned`/`shipped` disposition is a decision, not a delivery. The loop only truly closes when the decision becomes **tracked work** and the outcome reaches the customer. **Only on the PM's explicit confirmation** — same guardrail as Procedure D — before creating any issues:
+
+1. **Spin up tracked work** — one work issue per accepted deliverable, titled with its register ID (`[AFP-###·A2] …`), created in the delivery team's epic/project. Feedback issues live in `eventsmobileapp`; eng work lives in the dev workspace and **sub-issues cannot cross workspaces** — so create the delivery issues in the eng team and **cross-link by URL** (a Linear relation), or, when tracking inside the feedback team, create them as sub-issues of the feedback issue. State which you did.
+2. **Record the mapping** in the `triage_record` `tracking:` block (register ID → work issue) and set `epic:`.
+3. **Roll up** — when every tracked child is Done, move the feedback issue to Done.
+4. **Close back to the customer** — post a short comment addressed to CS summarizing what shipped (by register ID), so CS can relay it to the customer. This is the real close; a disposition alone leaves the customer uninformed.
+
 ## When is the loop closed?
 
+- **Two different closures.** The **FDE↔PM triage loop** closes when open items resolve and a disposition is committed to the issue; **the feedback is fully closed** only when the tracked work ships and the customer is informed (Procedure E). Terminal `disposition` states remain as defined below; a `planned` disposition implies delivery tracking follows via Procedure E.
 - **Terminal states:** `planned`, `shipped`, `wontfix`, `duplicate` are **closed**; `needs-evidence` is **parked** (open, ball with FDE).
 - **The three-part closure test** (all must hold): (1) every `open_questions` entry from the `feedback_record` is answered on the thread; (2) the disposition is committed to the issue's own fields (state/priority/label), not just prose; (3) a closing comment states it so CS/FDE/customer can see the outcome.
 - **Converge, don't count.** Each exchange must *shrink the open set* in the register. If open items aren't trending to zero — or a round adds more than it closes — that's the signal to escalate to a sync. The skills remove *routine* meetings, not genuine deadlocks. (Most items settle in one or two exchanges; treat that as observation, never a pass/fail bar.)
 
 ## Rollup document template
+
+Per-item registers posted in issue comments follow CANON D (labels, not sentences) — see *Keep the register readable* above. The rollup below is a different artifact (a cross-issue index for a PM audience), and its columns may stay tabular.
 
 ```markdown
 > **Feedback rollup** — <scope: time window / feature / team> · generated <date> · <N> items reviewed
@@ -197,12 +231,16 @@ Two filled instances to imitate — a single-item triage, and the cross-feature 
 
 **Register**
 
-| ID | Item | Owner | Status | Resolution |
-|---|---|---|---|---|
-| A1 | Persist action-output state across turns by executing prior turns (execution-model fix) | PM | 🔎 sized | Routed to the multi-turn testing epic — the real fix, but heavier |
-| A2 | Warn when a case depends on a value not present in the transcript | PM | 📋 accepted | Ships fastest — detectable at authoring time |
-| A3 | Document the state-replay limitation so PASS/FAIL is trusted correctly | PM | ✅ resolved | Immediate; ships alongside A2 |
-| P1 | Pull telemetry on how many other multi-turn suites are silently passing | PM | ⏳ open | — |
+> **A1 · 🔎 sized · owner PM** — Execute prior turns to persist state (execution-model fix)
+> → *Resolution:* Routed to the multi-turn testing epic — the real fix, but heavier.
+>
+> **A2 · 📋 accepted · owner PM** — Warn when a value isn't in the transcript
+> → *Resolution:* Ships fastest — detectable at authoring time.
+>
+> **A3 · ✅ resolved · owner PM** — Document the state-replay limitation
+> → *Resolution:* Immediate; ships alongside A2.
+>
+> **P1 · ⏳ open · owner PM** — Pull telemetry on affected multi-turn suites
 
 **Disposition:** Accepted, per the register above. A1 is the real fix but heavier, so it's routed to the epic rather than blocking the near-term ship; A2 and A3 ship together now. P1 (prevalence) is the PM's own action, not a question for the FDE.
 
@@ -223,6 +261,17 @@ notes: Execution-model ask (A1) accepted in principle; sized separately in the e
 ```
 
 On the PM's confirmation, the agent applied the disposition to `AFP-###` itself per Procedure D: `state` → Todo (per the disposition→state mapping, `planned` → Todo), `priority` raised, label `testing-center` added, and `assignee` set to the FDE — the current owner of A2's next action.
+
+Then, per Procedure E: once A2 and A3 shipped, the agent created delivery issues in the eng team (sub-issues can't cross workspaces from `eventsmobileapp`) and cross-linked them by URL, then updated the `triage_record`:
+
+```yaml
+tracking:
+  A2: AFL-412
+  A3: AFL-413
+epic: multi-turn testing epic
+```
+
+...and posted a close-back comment addressed to CS on `AFP-###` noting A2 and A3 shipped.
 
 ### 2. Cross-feature rollup (Procedure B)
 
